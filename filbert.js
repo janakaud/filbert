@@ -2884,7 +2884,7 @@
           },
           "pop": {
             value: function (i) {
-              if (!i)
+              if (!i && i !== 0)
                 i = this.length - 1;
               var item = this[i];
               this.splice(i, 1);
