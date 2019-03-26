@@ -2118,7 +2118,6 @@
       expect(_bracketR);
       return parseSubscripts(finishNode(node, "MemberExpression"), noCalls);
     } else if (!noCalls && eat(_parenL)) {
-      if (scope.isUserFunction(base.name)) {
         // Unpack parameters into JavaScript-friendly parameters, further processed at runtime
         var pl = parseParamsList();
         
@@ -2135,8 +2134,6 @@
         }
 
         node.arguments = args;
-      } else node.arguments = parseExprList(_parenR, false);
-
 
       if ( base.name === 'len' && node.arguments.length === 1 ) {
         node.type = "MemberExpression",
