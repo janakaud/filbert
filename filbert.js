@@ -591,7 +591,10 @@
         if (isNewline(input.charCodeAt(tokPos))) {
           if (input.charCodeAt(tokPos) === 13 && input.charCodeAt(tokPos+1) === 10) ++tokPos;
           ++tokPos;
-          if (options.location) { tokLineStart = tokPos; ++tokCurLine; }
+          if (options.locations) {
+            tokLineStart = tokPos;
+            ++tokCurLine;
+          }
         } else {
           raise(tokPos, "Unexpected character after line continuation character");
         }
@@ -600,7 +603,10 @@
       else if (bracketNesting > 0 && isNewline(ch)) {
         if (ch === 13 && input.charCodeAt(tokPos+1) === 10) ++tokPos;
         ++tokPos;
-        if (options.location) { tokLineStart = tokPos; ++tokCurLine; }
+        if (options.locations) {
+          tokLineStart = tokPos;
+          ++tokCurLine;
+        }
       }
       else break;
     }
@@ -1038,7 +1044,10 @@
               ++tokPos;
               out += "\n";
             }
-            if (options.location) { tokLineStart = tokPos; ++tokCurLine; }
+            if (options.locations) {
+              tokLineStart = tokPos;
+              ++tokCurLine;
+            }
           } else raise(tokStart, "Unterminated string constant");
         } else {
           out += String.fromCharCode(ch); // '\'
