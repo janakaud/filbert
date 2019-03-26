@@ -335,7 +335,7 @@
   // expressions and divisions. It is set on all token types that can
   // be followed by an expression (thus, a slash after them would be a
   // regular expression).
-  
+
   var _dict = { keyword: "dict" };  // TODO: not a keyword
   var _as = { keyword: "as" }, _assert = { keyword: "assert" }, _break = { keyword: "break" };
   var _class = { keyword: "class" }, _continue = { keyword: "continue" };
@@ -1816,24 +1816,38 @@
       else { node.argument = parseExpression();}
       return finishNode(node, "ReturnStatement");
 
-    case _try: // TODO, and remove parseBlock
+    case _try:
       next();
-      node.block = parseBlock();
+      expect(_colon);
+      eat(_colon);
+
+      node.block = parseSuite();
       node.handler = null;
-      if (tokType === _catch) {
+
+      if (tokType === _except) {
         var clause = startNode();
         next();
-        expect(_parenL);
-        clause.param = parseIdent();
-        if (strict && isStrictBadIdWord(clause.param.name))
-          raise(clause.param.start, "Binding " + clause.param.name + " in strict mode");
-        expect(_parenR);
-        clause.guard = null;
-        clause.body = parseBlock();
+
+        // 'except BaseException as e:'
+        if (tokType === _name) {
+          clause.exceptionClass = parseIdent();
+          clause.guard = null;
+          expect(_as);
+          eat(_as);
+          clause.param = parseIdent();
+          if (strict && isStrictBadIdWord(clause.param.name))
+            raise(clause.param.start, "Binding " + clause.param.name + " in strict mode");
+        }
+        // else: it would have just been 'except:'
+
+        expect(_colon);
+        eat(_colon);
+
+        clause.body = parseSuite();
         node.handler = finishNode(clause, "CatchClause");
       }
       node.guardedHandlers = empty;
-      node.finalizer = eat(_finally) ? parseBlock() : null;
+      node.finalizer = eat(_finally) ? parseSuite() : null;
       if (!node.handler && !node.finalizer)
         raise(node.start, "Missing catch or finally clause");
       return finishNode(node, "TryStatement");
@@ -1870,19 +1884,6 @@
         return finishNode(node, "ExpressionStatement");
       }
     }
-  }
-
-  // Parse indent-enclosed block of statements
-
-  function parseBlock() {
-    var node = startNode();
-    node.body = [];
-    while (tokType !== _dedent && tokType !== _eof) {
-      var stmt = parseStatement();
-      if (stmt) node.body.push(stmt);
-    }
-    if (tokType === _dedent) next();
-    return finishNode(node, "BlockStatement");
   }
 
   // Parse 'suite' from Python grammar spec
