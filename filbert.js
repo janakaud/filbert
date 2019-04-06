@@ -1779,10 +1779,12 @@
       next();
       return parseFor(node);
 
-    case _from: // Skipping from and import statements for now
-      skipLine();
+    case _from:
       next();
-      return parseStatement();
+      node.from = parseExpression();
+      expect(_import);
+      node.import = parseExpression();
+      return finishNode(node, "ImportStatement");
 
     case _if: case _elif:
       next();
@@ -1803,10 +1805,10 @@
       } 
       return finishNode(node, "IfStatement");
 
-    case _import: // Skipping from and import statements for now
-      skipLine();
+    case _import:
       next();
-      return parseStatement();
+      node.import = parseExpression();
+      return finishNode(node, "ImportStatement");
 
     case _newline:
       // TODO: parseStatement() should probably eat it's own newline
@@ -1816,6 +1818,13 @@
     case _pass:
       next();
       return finishNode(node, "EmptyStatement");
+
+    case _raise:
+      next();
+      var parens = eat(_parenL);
+      node.exception = parseExpression();
+      if (parens) eat(_parenR);
+      return finishNode(node, "RaiseStatement");
 
     case _return:
       if (!inFunction && !options.allowReturnOutsideFunction)
@@ -1828,7 +1837,6 @@
     case _try:
       next();
       expect(_colon);
-      eat(_colon);
 
       node.block = parseSuite();
       node.handler = null;
@@ -1842,7 +1850,6 @@
           clause.exceptionClass = parseIdent();
           clause.guard = null;
           expect(_as);
-          eat(_as);
           clause.param = parseIdent();
           if (strict && isStrictBadIdWord(clause.param.name))
             raise(clause.param.start, "Binding " + clause.param.name + " in strict mode");
@@ -1850,7 +1857,6 @@
         // else: it would have just been 'except:'
 
         expect(_colon);
-        eat(_colon);
 
         clause.body = parseSuite();
         node.handler = finishNode(clause, "CatchClause");
