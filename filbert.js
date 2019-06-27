@@ -348,6 +348,7 @@
   var _pass = { keyword: "pass" }, _raise = {keyword: "raise"};
   var _return = { keyword: "return", beforeExpr: true }, _try = { keyword: "try" };
   var _while = {keyword: "while"}, _with = {keyword: "with"}, _yield = {keyword: "yield"};
+  var _print = {keyword: "print"};
 
   // The keywords that denote values.
 
@@ -375,6 +376,7 @@
     "from": _from, "global": _global, "if": _if, "import": _import, "in": _in, "is": _is, 
     "lambda": _lambda, "nonlocal": _nonlocal, "not": _not, "or": _or, 
     "pass": _pass, "raise": _raise, "return": _return, "try": _try, "while": _while, 
+    "print": _print, "assert": _assert,
     "with": _with, "yield": _yield
   };
 
@@ -430,12 +432,10 @@
   // predicate containing a big ugly `switch` statement is faster than
   // a regular expression, and on Chrome the two are about on par.
   // This function uses `eval` (non-lexical) to produce such a
-  // predicate from a space-separated string of words.
   //
   // It starts by sorting the words by length.
 
   function makePredicate(words) {
-    words = words.split(" ");
     var f = "", cats = [];
     out: for (var i = 0; i < words.length; ++i) {
       for (var j = 0; j < cats.length; ++j)
@@ -475,12 +475,12 @@
 
   // The forbidden variable names
 
-  var isStrictBadIdWord = makePredicate("eval arguments");
+  var isStrictBadIdWord = makePredicate(["eval", "arguments"]);
 
   // Keywords
   // TODO: dict isn't a keyword, it's a builtin
 
-  var isKeyword = makePredicate("dict False None True and as assert break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield");
+  var isKeyword = makePredicate(Object.keys(keywordTypes));
 
   // ## Character categories
 
@@ -1783,8 +1783,7 @@
       next();
       node.from = parseExpression();
       expect(_import);
-      node.import = parseExpression();
-      return finishNode(node, "ImportStatement");
+      return parseImport(node);
 
     case _if: case _elif:
       next();
@@ -1807,8 +1806,7 @@
 
     case _import:
       next();
-      node.import = parseExpression();
-      return finishNode(node, "ImportStatement");
+      return parseImport(node);
 
     case _newline:
       // TODO: parseStatement() should probably eat it's own newline
@@ -1849,7 +1847,8 @@
         if (tokType === _name) {
           clause.exceptionClass = parseIdent();
           clause.guard = null;
-          expect(_as);
+          if (!eat(_as) && !eat(_comma))
+            raise(tokStart, "Expected '" + _as + "' or '" + _comma + "' for 'except'");
           clause.param = parseIdent();
           if (strict && isStrictBadIdWord(clause.param.name))
             raise(clause.param.start, "Binding " + clause.param.name + " in strict mode");
@@ -1875,6 +1874,12 @@
       node.body = parseSuite();
       return finishNode(node, "WhileStatement");
 
+    case _print:
+      next();
+      if (tokType === _parenL) node.body = parseParenExpression();
+      else node.body = parseExpression();
+      return finishNode(node, "PrintStatement");
+
     case _with: // TODO
       if (strict) raise(tokStart, "'with' in strict mode");
       next();
@@ -1899,6 +1904,12 @@
         return finishNode(node, "ExpressionStatement");
       }
     }
+  }
+
+  function parseImport(node) {
+      node.import = parseExpression();
+      if (eat(_as)) node.as = parseIdent();
+      return finishNode(node, "ImportStatement");
   }
 
   // Parse 'suite' from Python grammar spec
